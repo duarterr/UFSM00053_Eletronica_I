@@ -87,6 +87,10 @@ button.ghost{background:transparent;color:var(--accent)}
 sub{font-size:.72em}
 .legend .hmin{color:var(--h);display:inline-block;width:14px;height:14px;line-height:14px;text-align:center;font-size:13px;vertical-align:-2px;border-radius:50%;box-shadow:0 0 0 1.5px var(--surface),0 0 0 2.5px var(--muted);margin:0 7px 0 4px}
 @media (max-width:900px){main{grid-template-columns:minmax(0,1fr)} .controls{grid-template-columns:minmax(0,1fr)}}
+@media (min-width:700px){html.embed main{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)} html.embed .controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}}
+html.embed body{padding-block:12px 12px}
+html.embed .ro .v{font-size:16px;white-space:normal}
+html.embed .ro.param .v{font-size:15px}
 @media (max-width:560px){.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
@@ -146,6 +150,7 @@ sub{font-size:.72em}
 
 <script>
 (()=>{
+try{if(window.self!==window.top)document.documentElement.classList.add('embed');}catch(e){document.documentElement.classList.add('embed');}
 const $=id=>document.getElementById(id);
 const fmt=(v,d=2)=>(Math.abs(v)<5e-4?0:v).toFixed(d).replace('.',',').replace('-','−');
 
