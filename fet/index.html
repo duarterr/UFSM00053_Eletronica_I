@@ -579,7 +579,7 @@ function setDevice(k){
   if(!DEV[k])k='jfet';dk=k;D=DEV[k];
   $('h1').textContent=D.title;$('devsub').innerHTML=D.sub.replace('V_GS','V<sub>GS</sub>').replace('V_T','V<sub>T</sub>');
   const sv=$('sVgs');sv.min=D.vgs[0];sv.max=D.vgs[1];
-  S.vgs=dk==='enh'?5:0;S.vds=dk==='enh'?6:dk==='jfet'?6:8;
+  S.vgs=0;S.vds=0;
   const p=PAR[k];$('rP1k').innerHTML=p[0][0]+'<em>dispositivo</em>';$('rP1v').innerHTML=p[0][1]+`<small>${p[0][2]}</small>`;
   $('rP2k').innerHTML=p[1][0]+'<em>dispositivo</em>';$('rP2v').innerHTML=p[1][1]+`<small>${p[1][2]}</small>`;
   $('eq').innerHTML=eqHTML();$('rSatK').innerHTML='V<sub>DS(sat)</sub> = V<sub>GS</sub> − '+(k==='enh'?'V<sub>T</sub>':'V<sub>P</sub>');
