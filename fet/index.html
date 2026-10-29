@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="author" content="Renan Rodrigo Duarte">
+<meta name="description" content="Simulador interativo de JFET, MOSFET tipo depleção e MOSFET tipo intensificação: depleção, pinch-off, portadores e curvas características.">
+<title>Laboratório de FETs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: bancada de laboratório — seção transversal do dispositivo à esquerda (a "peça"), instrumentos (leituras + curvas) à direita, controles embaixo. */
+:root{
+  --bg:#eef2f6; --surface:#ffffff; --fg:#152030; --muted:#566275; --line:#d3dbe5;
+  --accent:#1c4f9e; --accent-soft:#dbe6f6; --op:#d9631e;
+  --n:#a8daf0; --nplus:#67bfe6; --p:#c6cad1; --dep:#f7f9fb; --metal:#4b525c; --ox:#efe6c8; --oxline:#a69866;
+  --e:#0d3a7a; --h:#c0392b; --ion:#7c8796;
+  --f-disp:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d131b; --surface:#151e2a; --fg:#e4eaf2; --muted:#94a1b3; --line:#2a3646;
+  --accent:#7fb0ff; --accent-soft:#1d2d47; --op:#ff9a52;
+  --n:#1e5a78; --nplus:#2b7eaa; --p:#3a414b; --dep:#1b232e; --metal:#8b939e; --ox:#4a4430; --oxline:#9c8f5c;
+  --e:#bfe9ff; --h:#ff8273; --ion:#7d8a9c; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0d131b; --surface:#151e2a; --fg:#e4eaf2; --muted:#94a1b3; --line:#2a3646;
+  --accent:#7fb0ff; --accent-soft:#1d2d47; --op:#ff9a52;
+  --n:#1e5a78; --nplus:#2b7eaa; --p:#3a414b; --dep:#1b232e; --metal:#8b939e; --ox:#4a4430; --oxline:#9c8f5c;
+  --e:#bfe9ff; --h:#ff8273; --ion:#7d8a9c; color-scheme:dark }
+*{box-sizing:border-box}
+html{color-scheme:light}body{margin:0}img{max-width:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 32px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-disp);font-weight:600;font-size:clamp(24px,3.2vw,34px);line-height:1.1;margin:2px 0 0;text-wrap:balance}
+nav.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px;flex-wrap:wrap}
+nav.tabs a{font-family:var(--f-disp);font-weight:500;font-size:15px;color:var(--muted);text-decoration:none;padding:7px 14px;border-radius:7px}
+nav.tabs a:hover{color:var(--fg)}
+nav.tabs a[aria-current="page"]{background:var(--accent);color:var(--surface)}
+nav.tabs a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--op);outline-offset:2px}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ptitle{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ptitle h2{font-family:var(--f-disp);font-weight:600;font-size:18px;margin:0}
+.ptitle span{font-size:13px;color:var(--muted)}
+canvas{display:block;width:100%;max-width:100%}
+#dev{aspect-ratio:440/470}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+.legend .dot{border-radius:50%;width:8px;height:8px;border:0;vertical-align:1px}
+.panel:first-child{align-self:start}
+.right{display:flex;flex-direction:column;gap:16px;min-width:0}
+.readouts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ro{background:var(--surface);padding:8px 10px;min-width:0}
+.ro .k{font-size:12px;color:var(--muted)}
+.ro .v{font-family:var(--f-mono);font-size:19px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ro .v small{font-size:12px;color:var(--muted);margin-left:2px}
+.ro.region .v{font-family:var(--f-disp);font-size:17px}
+.ro.param{background:var(--bg)}
+.ro.param .k em{font-style:normal;font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-left:4px}
+.ro.param .v{font-size:17px}
+.ro.region[data-r="sat"] .v{color:var(--op)}
+.ro.region[data-r="off"] .v{color:var(--muted)}
+.caption{background:var(--accent-soft);border-radius:12px;padding:12px 14px;min-height:88px;font-size:15px}
+.caption .step{font-family:var(--f-mono);font-size:12px;color:var(--accent);letter-spacing:.04em;display:block;margin-bottom:2px}
+.charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:12px}
+.charts figure{margin:0;min-width:0}
+.charts figcaption{font-size:13px;color:var(--muted);margin-bottom:4px}
+#cTr{aspect-ratio:.82/1}
+#cOut{aspect-ratio:1.12/1}
+.controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:14px 20px;align-items:end}
+.slider label{display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px}
+.slider label b{font-family:var(--f-mono);font-weight:500;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font-family:var(--f-disp);font-weight:600;font-size:15px;border-radius:8px;padding:9px 16px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--surface)}
+button.ghost{background:transparent;color:var(--accent)}
+.eqbox{display:flex;align-items:center;justify-content:center;gap:14px;background:var(--accent-soft);border-radius:10px;padding:14px 16px;overflow-x:auto}
+.eqm math{font-size:28px}
+.eqbox .unit{font-size:15px;color:var(--muted)}
+.eqnote{margin:0;font-size:14px;color:var(--muted);text-align:center}
+.ro .v small.eqv{color:var(--op);font-family:var(--f-body);font-size:13px}
+sub{font-size:.72em}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr)} .controls{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">UFSM00053 · Eletrônica I · Transistores de efeito de campo</div>
+      <h1 id="h1">JFET de canal n</h1>
+    </div>
+    <nav class="tabs" aria-label="Dispositivo">
+      <a href="#jfet" data-d="jfet">JFET</a>
+      <a href="#depl" data-d="depl">MOSFET depleção</a>
+      <a href="#enh" data-d="enh">MOSFET intensificação</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="ptitle"><h2>Seção transversal</h2><span id="devsub">canal n · elétrons fluem de S para D</span></div>
+      <canvas id="dev" aria-label="Seção transversal animada do transistor"></canvas>
+      <div class="legend legend-wrap" id="legend"></div>
+    </section>
+
+    <div class="right">
+      <div class="readouts" aria-live="polite">
+        <div class="ro"><div class="k">V<sub>GS</sub></div><div class="v" id="rVgs">0,00<small>V</small></div></div>
+        <div class="ro"><div class="k">V<sub>DS</sub></div><div class="v" id="rVds">0,00<small>V</small></div></div>
+        <div class="ro"><div class="k">I<sub>D</sub></div><div class="v" id="rId">0,00<small>mA</small></div></div>
+        <div class="ro region" id="rRegBox"><div class="k">Região</div><div class="v" id="rReg">ôhmica</div></div>
+        <div class="ro param"><div class="k" id="rP1k">V<sub>P</sub><em>dispositivo</em></div><div class="v" id="rP1v">−4<small>V</small></div></div>
+        <div class="ro param"><div class="k" id="rP2k">I<sub>DSS</sub><em>dispositivo</em></div><div class="v" id="rP2v">8<small>mA</small></div></div>
+        <div class="ro"><div class="k" id="rSatK">V<sub>DS(sat)</sub> = V<sub>GS</sub> − V<sub>P</sub></div><div class="v" id="rSat">4,00<small>V</small></div></div>
+        <div class="ro"><div class="k">I<sub>G</sub></div><div class="v">0<small>A</small></div></div>
+      </div>
+      <div class="caption" id="cap"></div>
+      <section class="panel">
+        <div class="charts">
+          <figure><figcaption>Transferência I<sub>D</sub> × V<sub>GS</sub> (saturação)</figcaption><canvas id="cTr"></canvas></figure>
+          <figure><figcaption>Saída I<sub>D</sub> × V<sub>DS</sub></figcaption><canvas id="cOut"></canvas></figure>
+        </div>
+      </section>
+      <section class="panel" id="eq" aria-label="Equação do dispositivo"></section>
+    </div>
+  </main>
+
+  <section class="panel controls">
+    <div class="slider"><label for="sVgs"><span>Tensão gate-fonte V<sub>GS</sub></span><b id="lVgs">0,00 V</b></label><input id="sVgs" type="range" step="0.05"></div>
+    <div class="slider"><label for="sVds"><span>Tensão dreno-fonte V<sub>DS</sub></span><b id="lVds">0,00 V</b></label><input id="sVds" type="range" step="0.05" min="0" max="15"></div>
+    <div class="btns"><button class="ghost" id="bReset">Zerar</button></div>
+  </section>
+
+  <footer style="font-size:13px;color:var(--muted);padding-top:4px">Prof. Renan Duarte · UFSM00053 – Eletrônica I · Universidade Federal de Santa Maria</footer>
+</div>
+
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const fmt=(v,d=2)=>(Math.abs(v)<5e-4?0:v).toFixed(d).replace('.',',').replace('-','−');
+
+/* ---------- Dispositivos ---------- */
+const DEV={
+  jfet:{title:'JFET de canal n',sub:'junções pn reversas estrangulam o canal',vgs:[-5,0],vds:[0,15],VP:-4,IDSS:8,Vn:4,
+        curves:[0,-1,-2,-3,-4],trRange:[-5,0],idMax:10},
+  depl:{title:'MOSFET tipo depleção, canal n',sub:'canal n implantado sob o gate isolado (SiO₂)',vgs:[-7,1.5],vds:[0,15],VP:-6,IDSS:8,Vn:6,
+        curves:[1,0,-1,-2,-3,-4,-5],trRange:[-7,1.5],idMax:12},
+  enh:{title:'MOSFET tipo intensificação, canal n',sub:'o canal só existe quando V_GS > V_T',vgs:[0,9],vds:[0,15],VT:2,k:10/36,Vn:6,
+        curves:[3,4,5,6,7,8],trRange:[0,9],idMax:14}
+};
+const vovOf=(d,vgs)=>d.VT!==undefined? vgs-d.VT : vgs-d.VP;
+const Kof=d=>d.k!==undefined? d.k : d.IDSS/(d.VP*d.VP);
+function ID(d,vgs,vds){const o=vovOf(d,vgs);if(o<=0||vds<=0)return 0;const K=Kof(d);return vds<o?K*(2*o*vds-vds*vds):K*o*o;}
+function region(d,vgs,vds){const o=vovOf(d,vgs);if(o<=0)return'off';if(vds>=o-1e-6)return'sat';return'ohm';}
+
+/* perfil normalizado do canal ao longo do comprimento u∈[0,1] (fonte→dreno) */
+function profile(d,vgs,vds,u){
+  const o=vovOf(d,vgs);if(o<=0)return{f:0,pinch:false};
+  const ve=Math.min(vds,o),sat=vds>=o;
+  const Lp=sat?Math.min(.26,.05*Math.pow(Math.max(vds-o,0),.75)):0;
+  if(u>1-Lp)return{f:0,pinch:true};
+  const up=Lp<1?u/(1-Lp):u;const G=o*ve-ve*ve/2;
+  return{f:Math.sqrt(Math.max(0,o*o-2*up*G))/d.Vn,pinch:false,Lp};
+}
+function pinchLen(d,vgs,vds){const o=vovOf(d,vgs);if(o<=0||vds<o)return 0;return Math.min(.26,.05*Math.pow(Math.max(vds-o,0),.75));}
+
+/* ---------- Estado ---------- */
+let dk='jfet',D=DEV.jfet;
+const S={vgs:0,vds:0};
+
+/* ---------- Geometria (coordenadas lógicas 440×470) ---------- */
+const LW=440,LH=470,NECK=2.2;
+const G={
+  jfet:{bar:[130,60,310,400],gate:[140,320],ch:[170,270],cx:220,a:50},
+  mos:{sub:[190,32,400,438],ox:[168,108,190,362],gm:[150,118,168,352],dr:[190,42,272,118],sr:[190,352,272,428],ch:[118,352],t0:56,tmax:56}
+};
+/* linhas do caminho dos elétrons: [y, xL, xR] da fonte (baixo) ao dreno (cima) */
+const NR=170;
+function buildRows(){
+  const rows=[];
+  if(dk==='jfet'){
+    const g=G.jfet,[x0,y0,x1,y1]=g.bar;
+    for(let i=0;i<NR;i++){
+      const y=y1-(i+.5)*(y1-y0)/NR;
+      if(y<=g.gate[1]&&y>=g.gate[0]){
+        const u=(g.gate[1]-y)/(g.gate[1]-g.gate[0]);
+        const pr=profile(D,S.vgs,S.vds,u);let hw=g.a*Math.min(1,pr.f);
+        if(pr.pinch||(hw<NECK&&region(D,S.vgs,S.vds)==='sat'))hw=NECK/2;
+        if(region(D,S.vgs,S.vds)==='off')hw=0;
+        rows.push([y,g.cx-hw,g.cx+hw]);
+      }else rows.push([y,x0+1,x1-1]);
+    }
+  }else{
+    const g=G.mos,[sx0,sy0,sx1,sy1]=g.sr,[dx0,dy0,dx1,dy1]=g.dr;
+    for(let i=0;i<NR;i++){
+      const y=sy1-(i+.5)*(sy1-dy0)/NR;
+      if(y>g.ch[1])rows.push([y,sx0+2,sx1-6]);
+      else if(y<g.ch[0])rows.push([y,dx0+2,dx1-6]);
+      else{
+        const u=(g.ch[1]-y)/(g.ch[1]-g.ch[0]);const pr=profile(D,S.vgs,S.vds,u);
+        let t=(dk==='depl'?g.t0:g.tmax)*pr.f;
+        const r=region(D,S.vgs,S.vds);
+        if(r==='off')t=0;else if(pr.pinch||(t<NECK&&r==='sat'))t=NECK;
+        rows.push([y,g.ox[2]+1,g.ox[2]+1+t]);
+      }
+    }
+  }
+  return rows;
+}
+function rowsArea(rows){let a=0;for(const r of rows)a+=Math.max(0,r[2]-r[1]);return a;}
+
+/* ---------- Partículas ---------- */
+const NMAX=520;
+const P=[];for(let i=0;i<NMAX;i++)P.push({q:Math.random(),s:Math.random(),ph:Math.random()*6.28,jx:0,jy:0});
+let Qref=1;
+function computeQref(){const sv={...S};S.vgs=D.vgs[1];S.vds=0;Qref=rowsArea(buildRows());S.vgs=sv.vgs;S.vds=sv.vds;}
+
+/* grades fixas para lacunas/íons */
+function grid(x0,y0,x1,y1,st,seed){const pts=[];let r=seed;const rnd=()=>{r=(r*16807)%2147483647;return r/2147483647;};
+  for(let y=y0+st/2;y<y1;y+=st)for(let x=x0+st/2;x<x1;x+=st)pts.push({x:x+(rnd()-.5)*st*.55,y:y+(rnd()-.5)*st*.55,ph:rnd()*6.28});return pts;}
+
+/* ---------- Tema ---------- */
+let C={};
+function readTheme(){const cs=getComputedStyle(document.documentElement);
+  for(const k of['bg','surface','fg','muted','line','accent','op','n','nplus','p','dep','metal','ox','oxline','e','h','ion','accent-soft'])C[k]=cs.getPropertyValue('--'+k).trim();}
+readTheme();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{readTheme();patt=null;});
+new MutationObserver(()=>{readTheme();patt=null;}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+let patt=null;
+function hatch(ctx){if(patt)return patt;const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');
+  x.fillStyle=C.ox;x.fillRect(0,0,8,8);x.strokeStyle=C.oxline;x.lineWidth=1;x.beginPath();x.moveTo(0,8);x.lineTo(8,0);x.moveTo(-2,2);x.lineTo(2,-2);x.moveTo(6,10);x.lineTo(10,6);x.stroke();
+  patt=ctx.createPattern(c,'repeat');return patt;}
+
+/* ---------- Canvas helpers ---------- */
+function fit(cv){const r=cv.getBoundingClientRect();const dpr=Math.min(2,window.devicePixelRatio||1);
+  const w=Math.max(10,Math.round(r.width*dpr)),h=Math.max(10,Math.round(r.height*dpr));
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}return{w,h,dpr};}
+function sub(ctx,main,s,x,y,size,align){ // texto com subscrito
+  ctx.font=`500 ${size}px ${getFont()}`;const w1=ctx.measureText(main).width;
+  ctx.font=`500 ${size*.7}px ${getFont()}`;const w2=ctx.measureText(s).width;
+  let x0=x;if(align==='center')x0=x-(w1+w2)/2;else if(align==='right')x0=x-(w1+w2);
+  ctx.textAlign='left';ctx.font=`500 ${size}px ${getFont()}`;ctx.fillText(main,x0,y);
+  ctx.font=`500 ${size*.7}px ${getFont()}`;ctx.fillText(s,x0+w1,y+size*.28);return w1+w2;}
+const getFont=()=>'"IBM Plex Sans",system-ui,sans-serif';
+function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.roundRect?ctx.roundRect(x,y,w,h,r):ctx.rect(x,y,w,h);}
+function arrow(ctx,x1,y1,x2,y2,col,lw=1.6,hs=7){ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  const a=Math.atan2(y2-y1,x2-x1);ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-hs*Math.cos(a-.4),y2-hs*Math.sin(a-.4));ctx.lineTo(x2-hs*Math.cos(a+.4),y2-hs*Math.sin(a+.4));ctx.closePath();ctx.fill();}
+function plus(ctx,x,y,r,col){ctx.strokeStyle=col;ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x-r,y);ctx.lineTo(x+r,y);ctx.moveTo(x,y-r);ctx.lineTo(x,y+r);ctx.stroke();}
+function minus(ctx,x,y,r,col){ctx.strokeStyle=col;ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x-r,y);ctx.lineTo(x+r,y);ctx.stroke();}
+function hole(ctx,x,y){ctx.strokeStyle=C.h;ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(x,y,3.4,0,6.283);ctx.stroke();plus(ctx,x,y,1.9,C.h);}
+
+/* ---------- Desenho do dispositivo ---------- */
+let rows=[],cum=[],Qtot=0,T=0;
+const gridJ={hL:grid(130,140,170,320,15,7),hR:grid(270,140,310,320,15,11),ion:grid(170,140,270,320,15,3)};
+const gridM={h:grid(190,32,400,438,21,5),ion:grid(190,108,290,362,13,9)};
+const elecPre=grid(190,110,215,352,9,21).sort((a,b)=>a.ph-b.ph); // elétrons minoritários acumulados junto à superfície (intens.)
+
+/* ---------- Portadores minoritários gerados termicamente ---------- */
+let MIN=[];
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const gauss=()=>{let u=0;while(!u)u=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(6.2832*Math.random());};
+const mosDw=()=>dk==='enh'?30*Math.min(1,Math.sqrt(Math.max(0,S.vgs)/D.VT)):0;
+const mosDd=()=>5+3.4*Math.sqrt(Math.max(0,S.vds));
+function inNplusZone(x,y,pad){const g=G.mos,dd=mosDd();return(x<g.dr[2]+dd+pad&&y<g.dr[3]+dd+pad)||(x<g.sr[2]+5+pad&&y>g.sr[1]-5-pad);}
+function spawn(m){
+  if(dk==='jfet'){
+    if(m.k==='e'){m.side=Math.random()<.5?-1:1;m.x=m.side<0?rnd(134,164):rnd(276,306);m.y=rnd(146,314);}
+    else{const z=Math.random();m.x=rnd(138,302);m.y=z<.45?rnd(332,394):rnd(66,130);}
+  }else{for(let i=0;i<40;i++){m.x=rnd(G.mos.ox[2]+70,394);m.y=rnd(40,430);if(!inNplusZone(m.x,m.y,10))break;}}
+  m.st='free';m.a=0;m.vx=0;m.vy=0;
+}
+function buildMinority(){MIN=[];const n=dk==='jfet'?{e:10,h:9}:{e:dk==='enh'?26:16,h:0};
+  for(const k of['e','h'])for(let i=0;i<n[k];i++){const m={k};spawn(m);m.a=1;MIN.push(m);}}
+function updMinority(dt){
+  for(const m of MIN){
+    if(m.st==='sink'){m.a-=dt*3;if(m.a<=0)spawn(m);continue;}
+    if(m.st==='swept'){const dx=m.tx-m.x,st=220*dt;if(Math.abs(dx)<=st){m.x=m.tx;m.st='sink';}else m.x+=Math.sign(dx)*st;continue;}
+    m.a=Math.min(1,m.a+dt*2);
+    m.vx+=gauss()*110*dt;m.vy+=gauss()*110*dt;m.vx*=1-3*dt;m.vy*=1-3*dt;
+    let dx=m.vx*dt,dy=m.vy*dt;
+    if(dk==='jfet'){
+      const g=G.jfet;
+      if(m.k==='e'){ // elétron minoritário no gate p: ao alcançar a junção, é varrido para o canal n
+        m.x+=dx;m.y=Math.min(318,Math.max(142,m.y+dy));
+        if(m.side<0)m.x=Math.max(132,m.x);else m.x=Math.min(308,m.x);
+        if((m.side<0&&m.x>=g.ch[0])||(m.side>0&&m.x<=g.ch[1])){const r=rowAtY(m.y);m.st='swept';
+          m.tx=r&&r[2]-r[1]>1?(m.side<0?r[1]+2:r[2]-2):g.cx;}
+      }else{ // lacuna minoritária no n: deriva lenta para a fonte; na depleção é varrida para o gate p
+        dy+=2.2*S.vds*dt;m.x=Math.min(308,Math.max(132,m.x+dx));m.y=Math.min(398,Math.max(62,m.y+dy));
+        if(m.y>=g.gate[0]&&m.y<=g.gate[1]){const r=rowAtY(m.y);if(!r||m.x<r[1]||m.x>r[2]){m.st='swept';m.tx=m.x<g.cx?g.ch[0]-3:g.ch[1]+3;}}
+        if(m.y>=397&&Math.random()<dt*2)m.st='sink';
+      }
+    }else{ // elétron minoritário no substrato p do MOSFET
+      const g=G.mos,inGate=m.y>=g.ch[0]&&m.y<=g.ch[1];
+      if(inGate)dx+=-S.vgs*(dk==='enh'?13:7)*dt; // campo do gate: atrai (V_GS>0) ou repele (V_GS<0)
+      m.x=Math.min(394,m.x+dx);m.y=Math.min(434,Math.max(36,m.y+dy));
+      if(inNplusZone(m.x,m.y,0)){m.st='sink';continue;}
+      if(inGate){const r=rowAtY(m.y),edge=r?r[2]:g.ox[2];
+        const lim=dk==='enh'?Math.max(edge,g.ox[2]+mosDw()):g.ox[2]+g.t0;
+        if(m.x<=lim+1){
+          if(dk==='enh'&&S.vgs<=0.05)m.x=lim+2; // sem campo: só reflete
+          else{m.st='swept';m.tx=Math.max(g.ox[2]+3,(r&&r[2]-r[1]>1?r[2]-2:g.ox[2]+3));}
+        }
+      }else m.x=Math.max(m.x,g.ox[2]+4);
+    }
+  }
+}
+function drawMinority(ctx){
+  for(const m of MIN){ctx.globalAlpha=Math.max(0,m.a);
+    if(m.k==='e'){ctx.fillStyle=C.e;ctx.strokeStyle=C.surface;ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(m.x,m.y,3,0,6.2832);ctx.fill();ctx.stroke();}
+    else hole(ctx,m.x,m.y);}
+  ctx.globalAlpha=1;}
+
+function drawDevice(dt){
+  const cv=$('dev'),ctx=cv.getContext('2d'),{w,h}=fit(cv);
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,w,h);
+  const sc=Math.min(w/LW,h/LH);ctx.setTransform(sc,0,0,sc,(w-LW*sc)/2,(h-LH*sc)/2);
+  rows=buildRows();cum=[0];for(const r of rows)cum.push(cum[cum.length-1]+Math.max(0,r[2]-r[1]));Qtot=cum[cum.length-1];
+  const id=ID(D,S.vgs,S.vds),reg=region(D,S.vgs,S.vds);
+  if(dk==='jfet')drawJFET(ctx,id,reg);else drawMOS(ctx,id,reg);
+  drawElectrons(ctx,dt,id);
+  updMinority(dt);drawMinority(ctx);
+  if(dk==='jfet')overJFET(ctx,id,reg);else overMOS(ctx,id,reg);
+}
+function rowAtY(y){ // linha mais próxima
+  let best=null,bd=1e9;for(const r of rows){const dd=Math.abs(r[0]-y);if(dd<bd){bd=dd;best=r;}}return best;}
+
+function drawJFET(ctx,id,reg){
+  const g=G.jfet,[x0,y0,x1,y1]=g.bar;
+  // fios
+  ctx.strokeStyle=C.fg;ctx.lineWidth=1.4;ctx.beginPath();
+  ctx.moveTo(g.cx,y0-18);ctx.lineTo(g.cx,14);ctx.moveTo(g.cx,y1+18);ctx.lineTo(g.cx,456);
+  ctx.moveTo(x0-10,230);ctx.lineTo(48,230);ctx.moveTo(x1+10,230);ctx.lineTo(392,230);ctx.stroke();
+  // barra n
+  ctx.fillStyle=C.n;ctx.fillRect(x0,y0,x1-x0,y1-y0);
+  // depleção (região do gate, entre p e borda do canal)
+  ctx.fillStyle=C.dep;ctx.beginPath();
+  const gr=rows.filter(r=>r[0]<=g.gate[1]+.1&&r[0]>=g.gate[0]-.1);
+  // lado esquerdo
+  ctx.moveTo(g.ch[0],g.gate[1]+6);
+  for(const r of gr)ctx.lineTo(Math.max(g.ch[0],r[1]),r[0]);
+  ctx.lineTo(g.ch[0],g.gate[0]-6);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(g.ch[1],g.gate[1]+6);
+  for(const r of gr)ctx.lineTo(Math.min(g.ch[1],r[2]),r[0]);
+  ctx.lineTo(g.ch[1],g.gate[0]-6);ctx.closePath();ctx.fill();
+  // regiões p (gate)
+  ctx.fillStyle=C.p;rrect(ctx,x0,g.gate[0],g.ch[0]-x0,g.gate[1]-g.gate[0],[0,6,6,0]);ctx.fill();
+  rrect(ctx,g.ch[1],g.gate[0],x1-g.ch[1],g.gate[1]-g.gate[0],[6,0,0,6]);ctx.fill();
+  for(const p of gridJ.hL.concat(gridJ.hR))hole(ctx,p.x+Math.sin(T*3+p.ph)*.8,p.y+Math.cos(T*2.6+p.ph)*.8);
+  // contatos
+  ctx.fillStyle=C.metal;
+  ctx.fillRect(g.cx-50,y0-18,100,18);ctx.fillRect(g.cx-50,y1,100,18);
+  ctx.fillRect(x0-10,200,10,60);ctx.fillRect(x1,200,10,60);
+  ctx.strokeStyle=C.line;ctx.lineWidth=1;ctx.strokeRect(x0,y0,x1-x0,y1-y0);
+  // rótulos
+  ctx.fillStyle=C.fg;ctx.font=`600 16px ${getFont()}`;ctx.textAlign='center';
+  ctx.fillText('D',g.cx+16,22);ctx.fillText('S',g.cx+16,452);ctx.fillText('G',40,226);ctx.fillText('G',404,236);
+  ctx.font=`600 15px ${getFont()}`;ctx.fillStyle=C.fg;ctx.fillText('p',118,334);ctx.fillText('p',322,334);
+  ctx.font=`12px ${getFont()}`;ctx.fillStyle=C.muted;ctx.textAlign='left';
+  ctx.fillText('canal n',x1+8,y0+28);
+}
+function overJFET(ctx,id,reg){
+  const g=G.jfet;
+  ctx.fillStyle=C.fg;sub(ctx,'V','GS',10,262,14,'left');ctx.font=`500 14px ${getFont()}`;ctx.fillText(' = '+fmt(S.vgs)+' V',32,262);
+  ctx.fillStyle=C.fg;sub(ctx,'V','DS',292,26,14,'left');ctx.font=`500 14px ${getFont()}`;ctx.fillText(' = '+fmt(S.vds)+' V',314,26);
+  ctx.fillStyle=C.muted;sub(ctx,'I','G',10,288,13,'left');ctx.font=`13px ${getFont()}`;ctx.fillText(' = 0',20,288);
+  currentArrow(ctx,g.cx-26,24,g.cx-26,46,id);
+  if(reg==='sat')pinchMark(ctx,g.cx,g.gate[0]+180*pinchLen(D,S.vgs,S.vds)/2,true);
+  if(reg==='off'){tag(ctx,'canal fechado',g.cx,g.gate[0]-14,C.op,'center');}
+}
+function currentArrow(ctx,x1,y1,x2,y2,id){
+  if(id<0.02)return;const lw=1+id/D.idMax*4;arrow(ctx,x1,y1,x2,y2,C.op,lw,8+lw);
+  ctx.fillStyle=C.op;sub(ctx,'I','D',x1-8,(y1+y2)/2+5,14,'right');}
+function pinchMark(ctx,x,y,left){
+  const tx=left?x+118:x+150,ty=y-6;
+  ctx.strokeStyle=C.op;ctx.lineWidth=1.4;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x+4,y);ctx.lineTo(tx-4,ty);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=C.op;ctx.beginPath();ctx.arc(x,y,3,0,6.283);ctx.fill();
+  tag(ctx,'pinch-off',tx,ty+4,C.op,'left',true);}
+function tag(ctx,t,x,y,col,al,it){ctx.font=`${it?'italic ':''}600 13px ${getFont()}`;const w=ctx.measureText(t).width;const x0=al==='center'?x-w/2:x;
+  ctx.fillStyle=C.surface;ctx.globalAlpha=.88;rrect(ctx,x0-4,y-13,w+8,18,4);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle=col;ctx.textAlign='left';ctx.fillText(t,x0,y);}
+
+function drawMOS(ctx,id,reg){
+  const g=G.mos,[bx0,by0,bx1,by1]=g.sub,enh=dk==='enh';
+  // fios
+  ctx.strokeStyle=C.fg;ctx.lineWidth=1.4;ctx.beginPath();
+  ctx.moveTo(124,80);ctx.lineTo(30,80);ctx.moveTo(124,390);ctx.lineTo(30,390);ctx.moveTo(150,235);ctx.lineTo(30,235);
+  ctx.moveTo(bx1+14,235);ctx.lineTo(426,235);ctx.lineTo(426,452);ctx.lineTo(30,452);ctx.moveTo(30,390);ctx.lineTo(30,452);ctx.stroke();
+  // substrato
+  ctx.fillStyle=C.p;ctx.fillRect(bx0,by0,bx1-bx0,by1-by0);
+  // depleção dreno-substrato (cresce com V_DS) e fonte-substrato
+  const dd=5+3.4*Math.sqrt(Math.max(0,S.vds)),ds=5;
+  ctx.fillStyle=C.dep;
+  rrect(ctx,g.dr[0],g.dr[1]-2,g.dr[2]-g.dr[0]+dd,g.dr[3]-g.dr[1]+dd+2,[0,10,10,0]);ctx.fill();
+  rrect(ctx,g.sr[0],g.sr[1]-ds,g.sr[2]-g.sr[0]+ds,g.sr[3]-g.sr[1]+ds+2,[0,10,10,0]);ctx.fill();
+  // depleção superficial (intensificação): lacunas repelidas
+  let dw=0;
+  if(enh){dw=30*Math.min(1,Math.sqrt(Math.max(0,S.vgs)/D.VT));if(dw>0.5){ctx.fillStyle=C.dep;ctx.fillRect(g.ox[2],g.ch[0],dw,g.ch[1]-g.ch[0]);}}
+  // canal implantado (depleção)
+  if(!enh){ctx.fillStyle=C.dep;ctx.fillRect(g.ox[2],g.ch[0]-4,g.t0,g.ch[1]-g.ch[0]+8);}
+  // canal com elétrons
+  ctx.fillStyle=C.n;ctx.beginPath();ctx.moveTo(g.ox[2],g.ch[1]);
+  for(const r of rows){if(r[0]<=g.ch[1]&&r[0]>=g.ch[0])ctx.lineTo(r[2],r[0]);}
+  ctx.lineTo(g.ox[2],g.ch[0]);ctx.closePath();ctx.fill();
+  // ilhas n+
+  ctx.fillStyle=C.nplus;rrect(ctx,g.dr[0],g.dr[1],g.dr[2]-g.dr[0],g.dr[3]-g.dr[1],[0,8,8,0]);ctx.fill();
+  rrect(ctx,g.sr[0],g.sr[1],g.sr[2]-g.sr[0],g.sr[3]-g.sr[1],[0,8,8,0]);ctx.fill();
+  // lacunas no substrato
+  for(const p of gridM.h){
+    if(p.x<g.dr[2]+dd+3&&p.y<g.dr[3]+dd+3)continue;
+    if(p.x<g.sr[2]+ds+3&&p.y>g.sr[1]-ds-3)continue;
+    if(p.y>=g.ch[0]-4&&p.y<=g.ch[1]+4){const r=rowAtY(p.y);const lim=Math.max(r?r[2]:0,enh?g.ox[2]+dw:g.ox[2]+g.t0)+4;if(p.x<lim)continue;}
+    hole(ctx,p.x+Math.sin(T*3+p.ph)*.8,p.y+Math.cos(T*2.6+p.ph)*.8);}
+  // elétrons minoritários atraídos (intens., antes do limiar)
+  if(enh&&S.vgs>0&&reg==='off'){const frac=Math.min(1,S.vgs/D.VT);const n=Math.round(elecPre.length*frac*.45);
+    ctx.fillStyle=C.e;for(let i=0;i<n;i++){const p=elecPre[i];ctx.beginPath();ctx.arc(g.ox[2]+3+(p.x-190)*.25*(1.2-frac)+Math.sin(T*4+p.ph),p.y,2.2,0,6.283);ctx.fill();}}
+  // óxido, gate e contatos
+  ctx.fillStyle=hatch(ctx);ctx.fillRect(g.ox[0],g.ox[1],g.ox[2]-g.ox[0],g.ox[3]-g.ox[1]);
+  ctx.fillStyle=C.metal;ctx.fillRect(g.gm[0],g.gm[1],g.gm[2]-g.gm[0],g.gm[3]-g.gm[1]);
+  ctx.fillRect(124,62,g.dr[0]-124+14,36);ctx.fillRect(124,372,g.sr[0]-124+14,36);
+  ctx.fillRect(bx1,205,14,60);
+  // cargas no gate
+  const qn=Math.round(Math.min(10,Math.abs(S.vgs)*(enh?1.2:1.6)));
+  for(let i=0;i<qn;i++){const y=g.gm[1]+(i+.5)*(g.gm[3]-g.gm[1])/qn;
+    (S.vgs>0?plus:minus)(ctx,(g.gm[0]+g.gm[2])/2,y,4,C.surface);}
+  // rótulos
+  ctx.fillStyle=C.fg;ctx.font=`600 16px ${getFont()}`;ctx.textAlign='center';
+  ctx.fillText('D',18,86);ctx.fillText('S',18,396);ctx.fillText('G',18,241);ctx.fillText('SS',421,200);
+  tag(ctx,'substrato p',345,170,C.fg,'center');
+  ctx.fillStyle=C.muted;ctx.font=`12px ${getFont()}`;ctx.textAlign='left';ctx.fillText('SiO₂',g.ox[0]-4,g.ox[1]-4);
+}
+function overMOS(ctx,id,reg){
+  const g=G.mos;
+  tag(ctx,'n⁺',g.dr[2]-16,g.dr[1]+22,C.fg,'center');tag(ctx,'n⁺',g.sr[2]-16,g.sr[3]-10,C.fg,'center');
+  ctx.fillStyle=C.fg;sub(ctx,'V','GS',8,268,13,'left');ctx.font=`500 13px ${getFont()}`;ctx.fillText(' = '+fmt(S.vgs)+' V',28,268);
+  sub(ctx,'V','DS',8,118,13,'left');ctx.font=`500 13px ${getFont()}`;ctx.fillText(' = '+fmt(S.vds)+' V',28,118);
+  ctx.fillStyle=C.muted;sub(ctx,'I','G',8,292,13,'left');ctx.font=`13px ${getFont()}`;ctx.fillText(' = 0',18,292);
+  currentArrow(ctx,82,58,110,58,id);
+  // rótulo do canal
+  if(reg!=='off'){ctx.strokeStyle=C.fg;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(290,306);ctx.lineTo(g.ox[2]+8,292);ctx.stroke();
+    tag(ctx,dk==='enh'?'canal n induzido':'canal n',292,312,C.fg,'left');}
+  if(dk==='enh'&&reg==='off'&&S.vgs>.2){tag(ctx,'lacunas repelidas (depleção)',236,312,C.fg,'left');}
+  if(dk==='enh'&&S.vgs<.2){tag(ctx,'sem canal',g.ox[2]+12,240,C.op,'left');}
+  if(reg==='sat'){const lp=pinchLen(D,S.vgs,S.vds);pinchMark(ctx,g.ox[2]+2,g.ch[0]+(g.ch[1]-g.ch[0])*lp/2,false);}
+  if(dk==='depl'&&reg==='off'){tag(ctx,'canal esvaziado',g.ox[2]+62,240,C.op,'left');}
+}
+
+function drawElectrons(ctx,dt,id){
+  if(Qtot<=0.5)return;
+  const vis=Math.min(NMAX,Math.round(NMAX*Qtot/Qref));
+  const rate=Math.min(3,(id/D.idMax)*0.16*Qref/Qtot);
+  ctx.fillStyle=C.e;
+  for(let i=0;i<vis;i++){
+    const p=P[i];p.q+=rate*dt;if(p.q>=1){p.q-=1;p.s=Math.random();}
+    const target=p.q*Qtot;let lo=0,hi=cum.length-1;
+    while(hi-lo>1){const m=(lo+hi)>>1;if(cum[m]<=target)lo=m;else hi=m;}
+    const r=rows[Math.min(lo,rows.length-1)];const seg=Math.max(1e-6,cum[lo+1]-cum[lo]);const fr=(target-cum[lo])/seg;
+    const nxt=rows[Math.min(lo+1,rows.length-1)];
+    const y=r[0]+(nxt[0]-r[0])*fr;const xl=r[1]+(nxt[1]-r[1])*fr,xr=r[2]+(nxt[2]-r[2])*fr;
+    const wdt=xr-xl;const jit=Math.min(1.4,wdt*.15);
+    const x=xl+p.s*wdt+Math.sin(T*5+p.ph)*jit;const yy=y+Math.cos(T*4.3+p.ph*1.7)*1.1;
+    ctx.beginPath();ctx.arc(x,yy,2.3,0,6.283);ctx.fill();
+  }
+}
+
+/* ---------- Gráficos ---------- */
+function axes(ctx,w,h,pad,xr,yr,xt,yt,xl,yl){
+  const X=v=>pad.l+(v-xr[0])/(xr[1]-xr[0])*(w-pad.l-pad.r),Y=v=>h-pad.b-(v-yr[0])/(yr[1]-yr[0])*(h-pad.t-pad.b);
+  ctx.strokeStyle=C.line;ctx.lineWidth=1;ctx.font=`11px ${getFont()}`;ctx.fillStyle=C.muted;
+  ctx.textAlign='center';for(const v of xt){ctx.beginPath();ctx.moveTo(X(v),pad.t);ctx.lineTo(X(v),h-pad.b);ctx.stroke();ctx.fillText(fmt(v,0),X(v),h-pad.b+14);}
+  ctx.textAlign='right';for(const v of yt){ctx.beginPath();ctx.moveTo(pad.l,Y(v));ctx.lineTo(w-pad.r,Y(v));ctx.stroke();ctx.fillText(fmt(v,0),pad.l-5,Y(v)+4);}
+  ctx.strokeStyle=C.muted;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(pad.l,pad.t-4);ctx.lineTo(pad.l,h-pad.b);ctx.lineTo(w-pad.r+4,h-pad.b);ctx.stroke();
+  if(xr[0]<0&&xr[1]>=0){ctx.beginPath();ctx.moveTo(X(0),pad.t-4);ctx.lineTo(X(0),h-pad.b);ctx.stroke();}
+  ctx.fillStyle=C.muted;sub(ctx,xl[0],xl[1],w-pad.r,h-pad.b-6,12,'right');
+  sub(ctx,yl[0],yl[1],pad.l+6,pad.t+4,12,'left');ctx.font=`11px ${getFont()}`;ctx.fillText(' (mA)',pad.l+6+ctx.measureText('ID').width+8,pad.t+4);
+  return{X,Y};
+}
+function drawCharts(){
+  const sc=Math.min(2,window.devicePixelRatio||1);
+  // saída
+  {const cv=$('cOut'),ctx=cv.getContext('2d'),{w,h}=fit(cv);ctx.setTransform(sc,0,0,sc,0,0);const W=w/sc,H=h/sc;ctx.clearRect(0,0,W,H);
+   const pad={l:32,r:44,t:14,b:22};const yMax=D.idMax;
+   const {X,Y}=axes(ctx,W,H,pad,[0,15],[0,yMax],[0,5,10,15],range(0,yMax,2),['V','DS'],['I','D']);
+   if(D.VP!==undefined){const xp=X(-D.VP);ctx.strokeStyle=C.op;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(xp,H-pad.b);ctx.lineTo(xp,H-pad.b+4);ctx.stroke();
+     ctx.fillStyle=C.op;ctx.font=`600 11px ${getFont()}`;ctx.textAlign='center';ctx.fillText('|V',xp-3,H-pad.b+15);ctx.font=`600 8px ${getFont()}`;ctx.fillText('P',xp+3,H-pad.b+18);ctx.font=`600 11px ${getFont()}`;ctx.fillText('|',xp+8,H-pad.b+15);}
+   // lugar geométrico do pinch-off
+   ctx.strokeStyle=C.muted;ctx.setLineDash([4,4]);ctx.lineWidth=1;ctx.beginPath();let first=true;
+   for(let o=0;o<=15;o+=.1){const i=Kof(D)*o*o;if(i>yMax*1.02)break;first?ctx.moveTo(X(o),Y(i)):ctx.lineTo(X(o),Y(i));first=false;}ctx.stroke();ctx.setLineDash([]);
+   let lastY=-99;for(const vg of D.curves){ctx.strokeStyle=C.muted;ctx.globalAlpha=.55;ctx.lineWidth=1.2;plotOut(ctx,X,Y,vg,yMax);ctx.globalAlpha=1;
+     const isat=ID(D,vg,15);if(isat<=yMax&&Math.abs(Y(isat)-lastY)>10){lastY=Y(isat);ctx.fillStyle=C.muted;ctx.font=`10px ${getFont()}`;ctx.textAlign='left';ctx.fillText((vg>0?'+':'')+fmt(vg,0)+' V',X(15)+3,Y(isat)+3);}}
+   ctx.strokeStyle=C.accent;ctx.lineWidth=2.4;plotOut(ctx,X,Y,S.vgs,yMax);
+   const id=ID(D,S.vgs,S.vds);ctx.fillStyle=C.op;ctx.beginPath();ctx.arc(X(S.vds),Y(Math.min(id,yMax)),5,0,6.283);ctx.fill();
+   ctx.strokeStyle=C.surface;ctx.lineWidth=1.5;ctx.stroke();
+  }
+  // transferência
+  {const cv=$('cTr'),ctx=cv.getContext('2d'),{w,h}=fit(cv);ctx.setTransform(sc,0,0,sc,0,0);const W=w/sc,H=h/sc;ctx.clearRect(0,0,W,H);
+   const pad={l:30,r:12,t:14,b:22};const xr=D.trRange,yMax=D.idMax;
+   const ticks=dk==='jfet'?[-5,-4,-3,-2,-1,0]:dk==='depl'?[-6,-4,-2,0]:[0,2,4,6,8];
+   const {X,Y}=axes(ctx,W,H,pad,xr,[0,yMax],ticks,range(0,yMax,2),['V','GS'],['I','D']);
+   ctx.strokeStyle=C.accent;ctx.lineWidth=2.2;ctx.beginPath();let f=true;
+   for(let v=xr[0];v<=xr[1]+1e-9;v+=.02){const i=Math.min(ID(D,v,99),yMax*1.05);f?ctx.moveTo(X(v),Y(i)):ctx.lineTo(X(v),Y(i));f=false;}ctx.stroke();
+   // marcações V_P / V_T / I_DSS
+   ctx.fillStyle=C.muted;ctx.font=`11px ${getFont()}`;ctx.textAlign='center';
+   const vx=D.VT!==undefined?D.VT:D.VP;sub(ctx,'V',D.VT!==undefined?'T':'P',X(vx),Y(0)-6,11,'center');
+   if(D.IDSS){ctx.setLineDash([3,3]);ctx.strokeStyle=C.muted;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X(xr[0]),Y(D.IDSS));ctx.lineTo(X(0),Y(D.IDSS));ctx.stroke();ctx.setLineDash([]);
+     ctx.fillStyle=C.muted;sub(ctx,'I','DSS',X(xr[0])+4,Y(D.IDSS)-5,11,'left');}
+   const isat=ID(D,S.vgs,99),reg=region(D,S.vgs,S.vds);
+   ctx.beginPath();ctx.arc(X(S.vgs),Y(Math.min(isat,yMax)),5,0,6.283);
+   if(reg==='sat'||reg==='off'){ctx.fillStyle=C.op;ctx.fill();ctx.strokeStyle=C.surface;ctx.lineWidth=1.5;ctx.stroke();}
+   else{ctx.strokeStyle=C.op;ctx.lineWidth=2;ctx.stroke();}
+  }
+}
+function range(a,b,s){const r=[];for(let v=a;v<=b+1e-9;v+=s)r.push(v);return r;}
+function plotOut(ctx,X,Y,vg,yMax){ctx.beginPath();let f=true;for(let v=0;v<=15.001;v+=.05){const i=ID(D,vg,v);if(i>yMax*1.04)return ctx.stroke();f?ctx.moveTo(X(v),Y(i)):ctx.lineTo(X(v),Y(i));f=false;}ctx.stroke();}
+
+/* ---------- Leituras e legendas ---------- */
+const sym={VGS:'V<sub>GS</sub>',VDS:'V<sub>DS</sub>',ID:'I<sub>D</sub>',VP:'V<sub>P</sub>',VT:'V<sub>T</sub>',IDSS:'I<sub>DSS</sub>',sat:'V<sub>DS(sat)</sub>'};
+function autoCaption(){
+  const r=region(D,S.vgs,S.vds),o=vovOf(D,S.vgs),id=ID(D,S.vgs,S.vds);
+  const thr=D.VT!==undefined?`${sym.VGS} − ${sym.VT}`:`${sym.VGS} − ${sym.VP}`;
+  if(r==='off'){
+    if(dk==='jfet')return`<b>Corte.</b> ${sym.VGS} ≤ ${sym.VP} = −4 V: as regiões de depleção das duas junções se encontram em todo o comprimento do canal. Não há caminho para os elétrons e ${sym.ID} = 0.`;
+    if(dk==='depl')return`<b>Corte.</b> ${sym.VGS} ≤ ${sym.VP} = −6 V: as cargas negativas no gate repeliram todos os elétrons do canal implantado. ${sym.ID} = 0.`;
+    return S.vgs<0.05?`<b>Sem canal.</b> Com ${sym.VGS} = 0 só há substrato p entre as ilhas n⁺. Dreno-substrato e substrato-fonte formam duas junções pn em oposição, e ${sym.ID} = 0 para qualquer ${sym.VDS}.`
+      :`<b>Abaixo do limiar.</b> ${sym.VGS} &gt; 0 repele as lacunas da superfície (região de depleção) e atrai os elétrons minoritários gerados termicamente no substrato (pontos com contorno), que se acumulam junto ao óxido. Até ${sym.VT} = 2 V eles não bastam para formar o canal: ${sym.ID} = 0.`;
+  }
+  const effect=dk==='jfet'?(S.vgs<-0.05?`A junção gate-canal já parte reversamente polarizada, então o canal começa mais estreito.`:`Com ${sym.VGS} = 0 o canal parte com a largura máxima.`)
+    :dk==='depl'?(S.vgs<-0.05?`Modo depleção: o gate negativo repele elétrons e o canal afina.`:S.vgs>0.05?`Modo intensificação: o gate positivo atrai elétrons extras e o canal engrossa, com ${sym.ID} acima de ${sym.IDSS}.`:`Com ${sym.VGS} = 0 o canal implantado já conduz.`)
+    :`Os elétrons minoritários do substrato, atraídos pelo gate, formam a camada de inversão (canal n induzido); quanto maior ${sym.VGS}, mais espesso o canal.`;
+  if(S.vds<0.05)return`<b>Canal formado, ${sym.VDS} = 0.</b> ${effect} Os elétrons apenas se agitam termicamente: sem campo longitudinal não há deriva e ${sym.ID} = 0.`;
+  if(r==='ohm')return`<b>Região ôhmica.</b> ${sym.VDS} &lt; ${thr} = ${fmt(o)} V. A tensão reversa entre gate e canal é maior perto do dreno, por isso o canal afina desse lado. ${sym.ID} = ${fmt(id)} mA cresce com ${sym.VDS} como num resistor controlado por ${sym.VGS}.`;
+  return`<b>Saturação (pinch-off).</b> ${sym.VDS} ≥ ${sym.sat} = ${thr} = ${fmt(o)} V. ${dk!=='enh'?`(Com ${sym.VGS} = 0, ${sym.sat} = |${sym.VP}|.) `:''}O canal estrangulou junto ao dreno; o excesso de ${sym.VDS} cai sobre o trecho estrangulado, que os elétrons atravessam acelerados pelo campo. ${sym.ID} fica em ${fmt(id)} mA.`;
+}
+function legend(){
+  const items=[`<span><i style="background:var(--n)"></i>${dk==='jfet'?'canal n':'n / canal n'}</span>`,`<span><i style="background:var(--p)"></i>material p</span>`,
+    `<span><i style="background:var(--dep)"></i>região de depleção (sem portadores livres)</span>`,
+    `<span><i class="dot" style="background:var(--e)"></i>elétron livre</span>`,
+    `<span><i class="dot" style="background:var(--e);box-shadow:0 0 0 1.5px var(--surface),0 0 0 2.5px var(--muted)"></i>elétron minoritário (gerado termicamente)</span>`,
+    `<span><span style="color:var(--h)">⊕</span> lacuna</span>`];
+  if(dk!=='jfet')items.splice(1,0,`<span><i style="background:var(--nplus)"></i>n⁺</span>`,`<span><i style="background:var(--ox)"></i>SiO₂</span>`);
+  $('legend').innerHTML=items.join('');
+}
+function readouts(){
+  const id=ID(D,S.vgs,S.vds),r=region(D,S.vgs,S.vds),o=vovOf(D,S.vgs);
+  $('rVgs').innerHTML=fmt(S.vgs)+'<small>V</small>';$('rVds').innerHTML=fmt(S.vds)+'<small>V</small>';
+  $('rId').innerHTML=fmt(id)+'<small>mA</small>';$('rSat').innerHTML=(o>0?fmt(o):'—')+'<small>V</small>'+(dk!=='enh'&&Math.abs(S.vgs)<.025?'<small class="eqv"> = |V<sub>P</sub>|</small>':'');
+  $('rReg').textContent=r==='off'?'corte':r==='sat'?'saturação':'ôhmica';$('rRegBox').dataset.r=r;
+  $('lVgs').textContent=fmt(S.vgs)+' V';$('lVds').textContent=fmt(S.vds)+' V';
+  $('cap').innerHTML=autoCaption();
+}
+
+/* ---------- Equação (MathML) ---------- */
+const mi=(b,x)=>x?`<msub><mi>${b}</mi><mi>${x}</mi></msub>`:`<mi>${b}</mi>`;
+const mn=v=>`<mn>${v}</mn>`,mo=o=>`<mo>${o}</mo>`;
+const M=(x,blk)=>`<math${blk?' display="block"':''}>${x}</math>`;
+const sq=x=>`<msup><mrow>${mo('(')}${x}${mo(')')}</mrow>${mn(2)}</msup>`;
+function eqHTML(){
+  const enh=dk==='enh';
+  const eq=enh?`${mi('I','D')}${mo('=')}${mi('k')}${sq(`${mi('V','GS')}${mo('−')}${mi('V','T')}`)}`
+    :`${mi('I','D')}${mo('=')}${mi('I','DSS')}${sq(`${mn(1)}${mo('−')}<mfrac>${mi('V','GS')}${mi('V','P')}</mfrac>`)}`;
+  const t=dk==='jfet'?'Equação de Shockley para o FET':dk==='depl'?'Equação de Shockley para o MOSFET tipo depleção':'Curva característica de transferência';
+  return `<div class="ptitle"><h2>${t}</h2></div>
+  <div class="eqbox"><div class="eqm">${M(eq)}</div><span class="unit">[A]</span></div>
+  ${enh?'<p class="eqnote"><i>k</i> depende da estrutura do dispositivo.</p>':''}`;
+}
+const nP=v=>v<0?`<mrow>${mo('(')}${mn(fmt(v))}${mo(')')}</mrow>`:mn(fmt(v));
+/* ---------- UI ---------- */
+const PAR={jfet:[['V<sub>P</sub>','−4','V'],['I<sub>DSS</sub>','8','mA']],depl:[['V<sub>P</sub>','−6','V'],['I<sub>DSS</sub>','8','mA']],enh:[['V<sub>T</sub>','2','V'],['k','0,278','mA/V²']]};
+function syncSliders(){$('sVgs').value=S.vgs;$('sVds').value=S.vds;}
+function setDevice(k){
+  if(!DEV[k])k='jfet';dk=k;D=DEV[k];
+  $('h1').textContent=D.title;$('devsub').innerHTML=D.sub.replace('V_GS','V<sub>GS</sub>').replace('V_T','V<sub>T</sub>');
+  const sv=$('sVgs');sv.min=D.vgs[0];sv.max=D.vgs[1];
+  S.vgs=dk==='enh'?5:0;S.vds=dk==='enh'?6:dk==='jfet'?6:8;
+  const p=PAR[k];$('rP1k').innerHTML=p[0][0]+'<em>dispositivo</em>';$('rP1v').innerHTML=p[0][1]+`<small>${p[0][2]}</small>`;
+  $('rP2k').innerHTML=p[1][0]+'<em>dispositivo</em>';$('rP2v').innerHTML=p[1][1]+`<small>${p[1][2]}</small>`;
+  $('eq').innerHTML=eqHTML();$('rSatK').innerHTML='V<sub>DS(sat)</sub> = V<sub>GS</sub> − '+(k==='enh'?'V<sub>T</sub>':'V<sub>P</sub>');
+  computeQref();syncSliders();legend();buildMinority();
+  document.querySelectorAll('nav.tabs a').forEach(a=>a.setAttribute('aria-current',a.dataset.d===k?'page':'false'));
+  readouts();
+}
+$('sVgs').addEventListener('input',e=>{S.vgs=+e.target.value;readouts();});
+$('sVds').addEventListener('input',e=>{S.vds=+e.target.value;readouts();});
+$('bReset').addEventListener('click',()=>{S.vgs=0;S.vds=0;syncSliders();readouts();});
+const route=()=>setDevice((location.hash||'#jfet').slice(1));
+addEventListener('hashchange',route);
+
+/* ---------- Laço ---------- */
+let last=performance.now();
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;T+=dt;drawDevice(dt);drawCharts();requestAnimationFrame(loop);}
+route();
+requestAnimationFrame(loop);
+document.fonts&&document.fonts.ready.then(()=>{drawCharts();});
+})();
+</script>
+
+</body>
+</html>
