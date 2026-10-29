@@ -85,6 +85,7 @@ button.ghost{background:transparent;color:var(--accent)}
 .eqnote{margin:0;font-size:14px;color:var(--muted);text-align:center}
 .ro .v small.eqv{color:var(--op);font-family:var(--f-body);font-size:13px}
 sub{font-size:.72em}
+.legend .hmin{color:var(--h);display:inline-block;width:14px;height:14px;line-height:14px;text-align:center;font-size:13px;vertical-align:-2px;border-radius:50%;box-shadow:0 0 0 1.5px var(--surface),0 0 0 2.5px var(--muted);margin:0 7px 0 4px}
 @media (max-width:900px){main{grid-template-columns:minmax(0,1fr)} .controls{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:560px){.readouts{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:minmax(0,1fr)}}
 </style>
@@ -317,7 +318,7 @@ function updMinority(dt){
 function drawMinority(ctx){
   for(const m of MIN){ctx.globalAlpha=Math.max(0,m.a);
     if(m.k==='e'){ctx.fillStyle=C.e;ctx.strokeStyle=C.surface;ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(m.x,m.y,3,0,6.2832);ctx.fill();ctx.stroke();}
-    else hole(ctx,m.x,m.y);}
+    else{ctx.strokeStyle=C.surface;ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(m.x,m.y,4.9,0,6.2832);ctx.stroke();hole(ctx,m.x,m.y);}}
   ctx.globalAlpha=1;}
 
 function drawDevice(dt){
@@ -543,7 +544,7 @@ function legend(){
   const items=[`<span><i style="background:var(--n)"></i>${dk==='jfet'?'canal n':'n / canal n'}</span>`,`<span><i style="background:var(--p)"></i>material p</span>`,
     `<span><i style="background:var(--dep)"></i>região de depleção (sem portadores livres)</span>`,
     `<span><i class="dot" style="background:var(--e)"></i>elétron livre</span>`,
-    `<span><i class="dot" style="background:var(--e);box-shadow:0 0 0 1.5px var(--surface),0 0 0 2.5px var(--muted)"></i>elétron minoritário (gerado termicamente)</span>`,
+    `<span><i class="dot" style="background:var(--e);box-shadow:0 0 0 1.5px var(--surface),0 0 0 2.5px var(--muted)"></i>${dk==='jfet'?'<span class="hmin">⊕</span>':''}portadores minoritários (gerados termicamente)</span>`,
     `<span><span style="color:var(--h)">⊕</span> lacuna</span>`];
   if(dk!=='jfet')items.splice(1,0,`<span><i style="background:var(--nplus)"></i>n⁺</span>`,`<span><i style="background:var(--ox)"></i>SiO₂</span>`);
   $('legend').innerHTML=items.join('');
